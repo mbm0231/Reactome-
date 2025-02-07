@@ -444,3 +444,111 @@ ggsave("Top 20 Down-regulated GO Biological Processes DM Dome Vs Transwell.png",
 
 
 ```
+##  Uninfected vs wildtype
+```
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+
+
+# Convert Log2 fold change and FDR p-value to numeric
+Updated_Uninfected_VS_Wildtypesheet1$`Log2 fold change` <- as.numeric(as.character(Updated_Uninfected_VS_Wildtypesheet1$`Log2 fold change`))
+Updated_Uninfected_VS_Wildtypesheet1$`FDR p-value` <- as.numeric(as.character(Updated_Uninfected_VS_Wildtypesheet1$`FDR p-value`))
+
+# Remove rows with NA values
+data_clean_Uninfected_VS_Wildtype <- Updated_Uninfected_VS_Wildtypesheet1[!is.na(Updated_Uninfected_VS_Wildtypesheet1$`Log2 fold change`) & !is.na(Updated_Uninfected_VS_Wildtypesheet1$`FDR p-value`), ]
+
+# Create a named vector of log2 fold changes
+gene_list_Uninfected_VS_Wildtype <- setNames(data_clean_Uninfected_VS_Wildtype$`Log2 fold change`, data_clean_Uninfected_VS_Wildtype$Name)
+
+# Convert gene symbols to Entrez IDs
+gene_ids_Uninfected_VS_Wildtype <- bitr(names(gene_list_Uninfected_VS_Wildtype), fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
+
+# Keep only the genes that were successfully mapped to Entrez IDs
+gene_list_Uninfected_VS_Wildtype <- gene_list_Uninfected_VS_Wildtype[names(gene_list_Uninfected_VS_Wildtype) %in% gene_ids_SPI1$SYMBOL]
+gene_ids_Uninfected_VS_Wildtype <- gene_ids_Uninfected_VS_Wildtype[match(names(gene_list_Uninfected_VS_Wildtype), gene_ids_Uninfected_VS_Wildtype$SYMBOL),]
+
+# Create a named vector of log2 fold changes with Entrez IDs as names
+gene_list_entrez_Uninfected_VS_Wildtype <- setNames(gene_list_Uninfected_VS_Wildtype, gene_ids_Uninfected_VS_Wildtype$ENTREZID)
+
+# Perform GO enrichment analysis
+go_result_Uninfected_VS_Wildtype <- enrichGO(gene = names(gene_list_entrez_Uninfected_VS_Wildtype),
+                      universe = names(gene_list_entrez_Uninfected_VS_Wildtype),
+                      OrgDb = org.Hs.eg.db,
+                      ont = "BP",
+                      pAdjustMethod = "BH",
+                      pvalueCutoff = 0.05,
+                      qvalueCutoff = 0.05,
+                      readable = TRUE)
+
+# Convert the result to a data frame
+print(class(go_result_Uninfected_VS_Wildtype))
+
+go_df_Uninfected_VS_Wildtype <- as.data.frame(go_result_Uninfected_VS_Wildtype)
+if (!is.data.frame(go_result_Uninfected_VS_Wildtype)) {
+  go_df_alt_Uninfected_VS_Wildtype <- go_result@result
+  print(class(go_df_alt_Uninfected_VS_Wildtype))
+  print(str(go_df_alt_Uninfected_VS_Wildtype))
+}
+
+# Display the top 20 enriched pathways
+print(head(go_df_alt_Uninfected_VS_Wildtype, 20))
+
+# Create a dot plot of enriched pathways
+dotplot(go_df_alt_Uninfected_VS_Wildtype, showCategory = 20) +
+  ggtitle("Top 20 Enriched GO Biological Processes SPI1 VS Uninfected")
+
+ggsave("go_enrichment_dotplot.png", width = 12, height = 10)
+
+# Create an enrichment map
+emapplot(ggo_df_alt, showCategory = 20) +
+  ggtitle("Enrichment Map of GO Biological Processes")
+
+ggsave("go_enrichment_emapplot.png", width = 12, height = 10)
+
+# Separate upregulated and downregulated genes
+up_genes_Uninfected_VS_Wildtype <- names(gene_list_Uninfected_VS_Wildtype[gene_list_Uninfected_VS_Wildtype > 0])
+down_genes_Uninfected_VS_Wildtype <- names(gene_list_Uninfected_VS_Wildtype[gene_list_Uninfected_VS_Wildtype < 0])
+
+
+# Convert gene symbols to Entrez IDs using a more robust method
+entrez_ids_GOUP_Uninfected_VS_Wildtype <- AnnotationDbi::select(org.Hs.eg.db, 
+                                    keys = up_genes_Uninfected_VS_Wildtype,
+                                    columns = c("ENTREZID", "SYMBOL"),
+                                    keytype = "SYMBOL")
+# Convert gene symbols to Entrez IDs using a more robust method
+entrez_ids_GODOWN_Uninfected_VS_Wildtype <- AnnotationDbi::select(org.Hs.eg.db, 
+                                    keys = down_genes_Uninfected_VS_Wildtype,
+                                    columns = c("ENTREZID", "SYMBOL"),
+                                    keytype = "SYMBOL")
+
+# Perform GO enrichment analysis for upregulated genes
+go_up_Uninfected_VS_Wildtype <- enrichPathway(gene =  entrez_ids_GOUP_Uninfected_VS_Wildtype$ENTREZID, 
+                  pAdjustMethod = "BH",
+                  pvalueCutoff = 0.05,
+                  qvalueCutoff = 0.05,
+                  readable = TRUE)
+
+# Perform GO enrichment analysis for downregulated genes
+go_down_Uninfected_VS_Wildtype <-  enrichPathway(gene = entrez_ids_GODOWN_Uninfected_VS_Wildtype$ENTREZID,
+                    pAdjustMethod = "BH",
+                    readable = TRUE)
+Uninfected_VS_Wildtype_DOTPLOT20Down <- dotplot(go_down_Uninfected_VS_Wildtype, showCategory = 20, font.size = 20) + ggtitle("Top 20 Down-regulated GO Biological Processes Uninfected VS Wildtype") + theme(plot.title = element_text(size = 25, face = "bold"), axis.text = element_text(size = 16),  # Increase axis text size
+           legend.text = element_text(size = 16),  # Increase legend text size
+           legend.title = element_text(size = 16))
+ggsave("Top 20 Down-regulated GO Biological Processes Uninfected VS Wildtype.png", Uninfected_VS_Wildtype_DOTPLOT20Down , width = 16, height = 16)
+# Check the result
+print(class(go_down))
+print(str(go_down))
+# Create dot plots for upregulated and downregulated pathways
+
+Uninfected_VS_Wildtype_DOTPLOT20 <- dotplot(go_up_Uninfected_VS_Wildtype, showCategory = 20, font.size = 20) + ggtitle("Top 20 Upregulated GO Biological Processes Uninfected VS Wildtype") + theme(plot.title = element_text(size = 25, face = "bold"), axis.text = element_text(size = 16),  # Increase axis text size
+           legend.text = element_text(size = 16),  # Increase legend text size
+           legend.title = element_text(size = 16))
+ggsave("Top 20 Upregulated GO Biological Processes Uninfected VS Wildtype.png", Uninfected_VS_Wildtype_DOTPLOT20 , width = 16, height = 16)
+ 
+
+``` 
