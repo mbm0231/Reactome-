@@ -7,7 +7,8 @@ library(dplyr)
 library(ggplot2)
 library(clusterProfiler)
 library(org.Hs.eg.db)
-
+library(ReactomePA)
+library(reactome.db)
 
 # Convert Log2 fold change and FDR p-value to numeric
 Updated_SPI1vsUninfectedsheet1$`Log2 fold change` <- as.numeric(as.character(Updated_SPI1vsUninfectedsheet1$`Log2 fold change`))
